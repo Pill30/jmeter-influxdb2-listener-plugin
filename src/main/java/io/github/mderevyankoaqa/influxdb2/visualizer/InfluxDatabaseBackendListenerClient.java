@@ -123,7 +123,49 @@ public class InfluxDatabaseBackendListenerClient extends AbstractBackendListener
      * Processes sampler results.
      */
     
+    /* --Removed RHILL 23/01/2026
     
+    public void handleSampleResults(List<SampleResult> sampleResults, BackendListenerContext context) {
+        // Gather all the listeners
+        List<SampleResult> allSampleResults = new ArrayList<>();
+        for (SampleResult sampleResult : sampleResults) {
+            allSampleResults.add(sampleResult);
+
+            if (recordSubSamples) {
+                Collections.addAll(allSampleResults, sampleResult.getSubResults());
+            }
+        }
+
+        for (SampleResult sampleResult : allSampleResults) {
+            getUserMetrics().add(sampleResult);
+            // Determine the type of sample, whether it is a request or a transaction controller
+            String samplerType = "transaction";
+            if (sampleResult instanceof HTTPSampleResult){
+                samplerType = "request";
+            }
+
+            if ((null != regexForSamplerList && sampleResult.getSampleLabel().matches(regexForSamplerList))
+                    || samplersToFilter.contains(sampleResult.getSampleLabel())) {
+
+                SampleResultPointContext sampleResultContext = new SampleResultPointContext();
+                sampleResultContext.setRunId(this.runId);
+                sampleResultContext.setTestName(this.testName);
+                sampleResultContext.setNodeName(this.nodeName);
+                sampleResultContext.setSampleResult(sampleResult);
+                sampleResultContext.setSamplerType(samplerType);
+                sampleResultContext.setTimeToSet(System.currentTimeMillis() * ONE_MS_IN_NANOSECONDS + this.getUniqueNumberForTheSamplerThread());
+                sampleResultContext.setErrorBodyToBeSaved(context.getBooleanParameter(KEY_INCLUDE_BODY_OF_FAILURES, false));
+                sampleResultContext.setResponseBodyLength(this.influxDBConfig.getResponseBodyLength());
+                var sampleResultPointProvider = new SampleResultPointProvider(sampleResultContext);
+
+                Point resultPoint = sampleResultPointProvider.getPoint();
+                InfluxDatabaseClient.getInstance(this.influxDBConfig, LOGGER).collectData(resultPoint);
+            }
+        }
+    }
+    */
+
+   //START Replaced with RHILL 23/01/2026
 private void addSampleAndAllSubSamples(SampleResult sampleResult, List<SampleResult> allSamples) {
     allSamples.add(sampleResult);
     for (SampleResult subResult : sampleResult.getSubResults()) {
@@ -146,12 +188,8 @@ public void handleSampleResults(List<SampleResult> sampleResults, BackendListene
     for (SampleResult sampleResult : allSampleResults) {
         getUserMetrics().add(sampleResult);
 
-        // Logic: If it's an HTTP request OR it has no children, it's a "request".
-        // Otherwise, it's a "transaction" (a container).
-        String samplerType = (sampleResult instanceof HTTPSampleResult || 
-                    sampleResult.getSubResults() == null || 
-                    sampleResult.getSubResults().length == 0) 
-                    ? "request" : "transaction";
+        // Logic: If it's an HTTP request, it's a "request" otherwise, it's a "transaction".
+        String samplerType = (sampleResult instanceof HTTPSampleResult) ? "request" : "transaction";
 
         // ✅ Apply regex-based filtering (e.g., to exclude "bzm - Parallel Controller")
         if ((regexForSamplerList != null && sampleResult.getSampleLabel().matches(regexForSamplerList))
@@ -174,6 +212,8 @@ public void handleSampleResults(List<SampleResult> sampleResults, BackendListene
         }
     }
 }
+
+    //END Replaced with RHILL 23/01/2026
 
     @Override
     public Arguments getDefaultParameters() {
